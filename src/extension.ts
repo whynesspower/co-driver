@@ -1,8 +1,10 @@
 import * as vscode from "vscode";
 import axios from "axios";
 import OpenAI from "openai";
-const openai = new OpenAI();
-require("dotenv").config();
+
+const openai = new OpenAI({
+  apiKey: "sk-",
+});
 
 export function activate(context: vscode.ExtensionContext) {
   console.log('Congratulations, your extension "co-driver" is now active!');
@@ -10,7 +12,6 @@ export function activate(context: vscode.ExtensionContext) {
   let disposable = vscode.commands.registerCommand(
     "co-driver.startChat",
     async () => {
-      // Open a panel for the chat
       const panel = vscode.window.createWebviewPanel(
         "co-driverChat",
         "Co-Driver Chat",
@@ -19,22 +20,25 @@ export function activate(context: vscode.ExtensionContext) {
       );
 
       // Set up the initial message
-      const messages = [
-        { role: "system", content: "You are a helpful assistant." },
-        { role: "user", content: "Hello!" },
+      const messages: any = [
+        { role: "user", content: "what is x in algebra!" },
       ];
-
       // Function to send a message and update thde chat
       const sendMessage = async (content: string, role: string) => {
-        messages.push({ role, content });
+        const currMsg: object = { role: role, content: content };
+
+        const updatedMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+          ...messages,
+          currMsg,
+        ];
 
         try {
-          const response = await openai.chat.completions.create({
-            messages: [
-              { role: "system", content: "You are a helpful assistant." },
-            ],
+          const params: OpenAI.Chat.ChatCompletionCreateParams = {
+            messages: updatedMessages,
             model: "gpt-3.5-turbo",
-          });
+          };
+          const response: OpenAI.Chat.ChatCompletion =
+            await openai.chat.completions.create(params);
 
           console.log(response.choices[0]);
 
@@ -42,8 +46,7 @@ export function activate(context: vscode.ExtensionContext) {
           const reply = response.choices[0].message.content
             ? response.choices[0].message.content
             : undefined;
-          // const reply = "First Reply from GPT";
-          // Update the chat panel
+
           panel.webview.html = getChatHtml(messages, reply);
           console.log(messages);
         } catch (error) {
@@ -55,6 +58,7 @@ export function activate(context: vscode.ExtensionContext) {
       panel.webview.html = getChatHtml(messages);
 
       vscode.window.showInformationMessage("Start Chat Function running!");
+
       // Handle user input and call sendMessage
       const disposableInput = vscode.window.onDidChangeTextEditorSelection(
         (event) => {
@@ -70,8 +74,18 @@ export function activate(context: vscode.ExtensionContext) {
           }
         }
       );
-
       context.subscriptions.push(disposableInput);
+
+      // panel.webview.onDidReceiveMessage(
+      //   (message) => {
+      //     if (message.command === "sendMessage") {
+      //       vscode.window.showInformationMessage("Message sent");
+      //       sendMessage(message.text, "user");
+      //     }
+      //   },
+      //   undefined,
+      //   context.subscriptions
+      // );
     }
   );
 
@@ -153,9 +167,10 @@ function getChatHtml(
                   <div class="chat-history">${chatHistory}${replyHtml}</div>
                   <div class="input-container">
                       <input type="text" class="message-input" id="userMessage" placeholder="Type your message...">
-                      <div class="send-button" onclick="sendMessage()">Send</div>
+                      <div class="send-button"  onclick="sendMessage()">Send</div>
                   </div>
               </div>
+
               <script>
                   function sendMessage() {
                       const userMessage = document.getElementById('userMessage').value;
