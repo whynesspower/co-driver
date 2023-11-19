@@ -1,186 +1,137 @@
-import * as vscode from "vscode";
 import axios from "axios";
+import * as vscode from "vscode";
+import { ApiKeyManager } from "./ApiKeyManager";
+import { WebviewContainer } from "./webview/WebviewContainer";
 import OpenAI from "openai";
 
-const openai = new OpenAI({
-  apiKey: "sk-",
-});
+export const activate = async (context: vscode.ExtensionContext) => {
+  vscode.window.showInformationMessage("ACTIVATEDD.");
+  const apiKeyManager = new ApiKeyManager({
+    secretStorage: context.secrets,
+  });
 
-export function activate(context: vscode.ExtensionContext) {
-  console.log('Congratulations, your extension "co-driver" is now active!');
+  let webviewPanel: WebviewContainer | undefined;
+  const chatPanel: vscode.WebviewViewProvider = {
+    async resolveWebviewView(webviewView: vscode.WebviewView) {
+      webviewPanel = new WebviewContainer({
+        webview: webviewView.webview,
+      });
+    },
+  };
 
-  let disposable = vscode.commands.registerCommand(
-    "co-driver.startChat",
-    async () => {
-      const panel = vscode.window.createWebviewPanel(
-        "co-driverChat",
-        "Co-Driver Chat",
-        vscode.ViewColumn.One,
-        {}
-      );
-
-      // Set up the initial message
-      const messages: any = [
-        { role: "user", content: "what is x in algebra!" },
-      ];
-      // Function to send a message and update thde chat
-      const sendMessage = async (content: string, role: string) => {
-        const currMsg: object = { role: role, content: content };
-
-        const updatedMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-          ...messages,
-          currMsg,
-        ];
-
-        try {
-          const params: OpenAI.Chat.ChatCompletionCreateParams = {
-            messages: updatedMessages,
-            model: "gpt-3.5-turbo",
-          };
-          const response: OpenAI.Chat.ChatCompletion =
-            await openai.chat.completions.create(params);
-
-          console.log(response.choices[0]);
-
-          // const reply = response.data.choices[0].message.content;
-          const reply = response.choices[0].message.content
-            ? response.choices[0].message.content
-            : undefined;
-
-          panel.webview.html = getChatHtml(messages, reply);
-          console.log(messages);
-        } catch (error) {
-          console.error("Error sending message to API:", error);
-        }
-      };
-
-      // Set up the initial chat panel content
-      panel.webview.html = getChatHtml(messages);
-
-      vscode.window.showInformationMessage("Start Chat Function running!");
-
-      // Handle user input and call sendMessage
-      const disposableInput = vscode.window.onDidChangeTextEditorSelection(
-        (event) => {
-          const editor = vscode.window.activeTextEditor;
-
-          if (editor) {
-            const selection = editor.selection;
-            const userMessage = editor.document.getText(selection);
-
-            if (userMessage.trim() !== "") {
-              sendMessage(userMessage, "user");
-            }
-          }
-        }
-      );
-      context.subscriptions.push(disposableInput);
-
-      // panel.webview.onDidReceiveMessage(
-      //   (message) => {
-      //     if (message.command === "sendMessage") {
-      //       vscode.window.showInformationMessage("Message sent");
-      //       sendMessage(message.text, "user");
-      //     }
-      //   },
-      //   undefined,
-      //   context.subscriptions
-      // );
-    }
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider("codriver.chat", chatPanel)
   );
 
-  context.subscriptions.push(disposable);
-}
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      "codriver.enterOpenAIApiKey",
+      apiKeyManager.enterOpenAIApiKey.bind(apiKeyManager)
+    )
+  );
 
-function getChatHtml(
-  messages: { role: string; content: string }[],
-  reply?: string
-): string {
-  const chatHistory = messages
-    .map((message) => {
-      const roleClass =
-        message.role === "user" ? "user-message" : "assistant-message";
-      return `<div class="${roleClass}">${message.content}</div>`;
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codriver.clearOpenAIApiKey", async () => {
+      await apiKeyManager.clearOpenAIApiKey();
+      vscode.window.showInformationMessage("OpenAI API key cleared.");
     })
-    .join("");
+  );
 
-  const replyHtml = reply
-    ? `<div class="assistant-message">${reply}</div>`
-    : "";
+  // context.subscriptions.push(
+  //   vscode.commands.registerCommand("codriver.chat.baat", async () => {
+  //     const activeEditor = vscode.window.activeTextEditor;
+  //     const document = activeEditor?.document;
+  //     const range = activeEditor?.selection;
 
-  return `
-      <html>
-          <head>
-              <style>
-                  body {
-                      font-family: 'Arial', sans-serif;
-                      margin: 10px;
-                  }
-                  .chat-panel {
-                      display: flex;
-                      flex-direction: column;
-                      height: 100%;
-                  }
-                  .chat-history {
-                      flex: 1;
-                      overflow-y: auto;
-                  }
-                  .user-message {
-                      background-color: #e6f7ff;
-                      padding: 8px;
-                      border-radius: 8px;
-                      margin-bottom: 8px;
-                      max-width: 70%;
-                      align-self: flex-end;
-                      color: black;
-                  }
-                  .assistant-message {
-                      background-color: #f0f0f0;
-                      padding: 8px;
-                      border-radius: 8px;
-                      margin-bottom: 8px;
-                      max-width: 70%;
-                      color: black;
-                  }
-                  .input-container {
-                      display: flex;
-                      margin-top: 10px;
-                  }
-                  .message-input {
-                      flex: 1;
-                      margin-right: 10px;
-                      padding: 8px;
-                      border-radius: 8px;
-                      border: 1px solid #ccc;
-                      color: black;
-                  }
-                  .send-button {
-                      padding: 8px;
-                      border: 1px solid #ccc;
-                      border-radius: 8px;
-                      cursor: pointer;
-                  }
-              </style>
-          </head>
-          <body>
-              <div class="chat-panel">
-                  <div class="chat-history">${chatHistory}${replyHtml}</div>
-                  <div class="input-container">
-                      <input type="text" class="message-input" id="userMessage" placeholder="Type your message...">
-                      <div class="send-button"  onclick="sendMessage()">Send</div>
-                  </div>
-              </div>
+  //     if (range == null || document == null) {
+  //       return;
+  //     }
 
-              <script>
-                  function sendMessage() {
-                      const userMessage = document.getElementById('userMessage').value;
-                      vscode.postMessage({
-                          command: 'sendMessage',
-                          text: userMessage
-                      });
-                  }
-              </script>
-          </body>
-      </html>
-  `;
-}
+  //     const selectedText = document.getText(range);
+
+  //     if (selectedText.length === 0) {
+  //       return;
+  //     }
+
+  //     const openAIApiKey = await apiKeyManager.getOpenAIApiKey();
+  //     const openai = new OpenAI({
+  //       apiKey: openAIApiKey,
+  //     });
+
+  //     const chatCompletion = await openai.chat.completions.create({
+  //       messages: [{ role: "user", content: "Explain me this code" }],
+  //       model: "gpt-3.5-turbo",
+  //       stream: true,
+  //     });
+
+  //     for await (const chat of chatCompletion) {
+  //       process.stdout.write(chat.choices[0]?.delta?.content || "");
+  //     }
+
+  //     const completion = response.data.choices[0].text;
+
+  //     await vscode.commands.executeCommand("codriver.chat.focus");
+  //     await webviewPanel?.update(completion);
+  //   })
+  // );
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand("codriver.chat.explainCode", async () => {
+      const activeEditor = vscode.window.activeTextEditor;
+      const document = activeEditor?.document;
+      const range = activeEditor?.selection;
+
+      if (range == null || document == null) {
+        return;
+      }
+
+      const selectedText = document.getText(range);
+
+      if (selectedText.length === 0) {
+        return;
+      }
+
+      const openAIApiKey = await apiKeyManager.getOpenAIApiKey();
+
+      const openai = new OpenAI({
+        apiKey: openAIApiKey,
+      });
+
+      const chatCompletion = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "user",
+            content: `Explain the code below:\n\n ${selectedText}`,
+          },
+        ],
+        model: "gpt-3.5-turbo",
+      });
+      // const response = await axios.post(
+      //   `https://api.openai.com/v1/completions`,
+      //   {
+      //     model: "text-davinci-003",
+      //     prompt: `Explain the code below:\n\n ${selectedText}`,
+      //     max_tokens: 1024,
+      //     temperature: 0,
+      //     // top_p is excluded because temperature is set
+      //     best_of: 1,
+      //     frequency_penalty: 0,
+      //     presence_penalty: 0,
+      //   },
+      //   {
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //       Authorization: `Bearer ${openAIApiKey}`,
+      //     },
+      //   }
+      // );
+
+      // const completion = response.data.choices[0].text;
+      const completion = chatCompletion.choices[0]?.message?.content || "";
+      await vscode.commands.executeCommand("codriver.chat.focus");
+      await webviewPanel?.update(completion);
+    })
+  );
+};
+
+export const deactivate = async () => {};

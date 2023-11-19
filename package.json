@@ -1,25 +1,64 @@
 {
-  "name": "co-driver",
-  "displayName": "co-driver",
+  "publisher": "codriver",
+  "name": "codriver-vscode",
+  "version": "0.0.0",
+  "displayName": "codriver",
   "description": "",
-  "version": "0.0.1",
-  "engines": {
-    "vscode": "^1.84.0"
+  "keywords": [],
+  "categories": [],
+  "icon": "media/extension-icon.png",
+  "galleryBanner": {
+    "color": "#111827",
+    "theme": "dark"
   },
-  "categories": [
-    "Other"
-  ],
-  "activationEvents": [
-    "onCommand:co-driver.startChat"
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "homepage": "",
+  "repository": "",
+  "bugs": "",
+  "extensionKind": [
+    "workspace"
   ],
   "main": "./dist/extension.js",
+  "activationEvents": [],
   "contributes": {
     "commands": [
       {
-        "command": "co-driver.startChat",
-        "title": "startChat!"
+        "command": "codriver.enterOpenAIApiKey",
+        "category": "codriver",
+        "title": "Enter OpenAI API key"
+      },
+      {
+        "command": "codriver.clearOpenAIApiKey",
+        "category": "codriver",
+        "title": "Clear OpenAI API key"
+      },
+      {
+        "command": "codriver.chat.explainCode",
+        "title": "Explain code",
+        "category": "codriver",
+        "icon": "$(comment-discussion)"
       }
-    ]
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codriver",
+          "title": "codriver",
+          "icon": "media/extension-icon.png"
+        }
+      ]
+    },
+    "views": {
+      "codriver": [
+        {
+          "id": "codriver.chat",
+          "name": "Chat",
+          "type": "webview"
+        }
+      ]
+    }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
