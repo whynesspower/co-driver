@@ -39,6 +39,12 @@
         "title": "Explain code",
         "category": "codriver",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "codriver.chat2.startChat",
+        "title": "Start Chat",
+        "category": "codriver",
+        "icon": "$(comment-discussion)"
       }
     ],
     "viewsContainers": {
@@ -54,6 +60,11 @@
       "codriver": [
         {
           "id": "codriver.chat",
+          "name": "Chat",
+          "type": "webview"
+        },
+        {
+          "id": "codriver.chat2",
           "name": "Chat",
           "type": "webview"
         }
