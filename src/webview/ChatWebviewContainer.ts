@@ -2,9 +2,17 @@ import * as vscode from "vscode";
 
 export class ChatWebviewContainer {
   private readonly webview: vscode.Webview;
+  private readonly onSendMessage: (message: string) => void;
 
-  constructor({ webview }: { webview: vscode.Webview }) {
+  constructor({
+    webview,
+    onSendMessage,
+  }: {
+    webview: vscode.Webview;
+    onSendMessage: (message: string) => void;
+  }) {
     this.webview = webview;
+    this.onSendMessage = onSendMessage;
     this.update("");
   }
 
@@ -25,17 +33,25 @@ export class ChatWebviewContainer {
             <div id="chat-messages">${chatContent}</div>
             <div id="chat-input-container">
               <input type="text" id="chat-input" />
-              <button onclick="sendMessage()">Send</button>
+              <button id="send-button">Send</button>
             </div>
           </div>
           <script>
             function sendMessage() {
+              console.log('send message RANN');
               const inputField = document.getElementById('chat-input');
               const message = inputField.value;
-              // Add logic here to send the message to the API and update chat
-              inputField.value = ''; // Clear the input field after sending
+              
+              // Use 'window.vscode' to access the onSendMessage function
+              window.vscode.postMessage(message);
+
+              inputField.value = '';
             }
-          </script>
+
+            // Use window.vscode to access the onSendMessage function
+            window.vscode = acquireVsCodeApi();
+            document.getElementById('send-button').addEventListener('click', sendMessage);
+       </script>
         </body>
       </html>`;
   }

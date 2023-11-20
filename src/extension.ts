@@ -80,9 +80,10 @@ export const activate = async (context: vscode.ExtensionContext) => {
   let chatWebviewPanel: ChatWebviewContainer | undefined;
 
   const chatPanel2: vscode.WebviewViewProvider = {
-    async resolveWebviewView(webviewView: vscode.WebviewView) {
+    resolveWebviewView(webviewView: vscode.WebviewView) {
       chatWebviewPanel = new ChatWebviewContainer({
         webview: webviewView.webview,
+        onSendMessage: sendMessageFromWebview,
       });
     },
   };
@@ -91,21 +92,91 @@ export const activate = async (context: vscode.ExtensionContext) => {
     vscode.window.registerWebviewViewProvider("codriver.chat2", chatPanel2)
   );
 
+  let chats: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    { role: "system", content: "You are a helpful assistant." },
+    { role: "user", content: "Hello!" },
+  ];
+
   context.subscriptions.push(
     vscode.commands.registerCommand("codriver.chat2.startChat", async () => {
-      const welcomeMessage = "Welcome to the custom chat!";
-      await chatWebviewPanel?.update(`<div>${welcomeMessage}</div>`);
+      // Get the OpenAI API key
+      vscode.window.showInformationMessage("star Chat running");
+      const openAIApiKey = await apiKeyManager.getOpenAIApiKey();
 
-      // Handle other commands or interactions as needed
-      // For example, you can add a message to the chat when the user clicks a button in the editor
+      // Initialize the OpenAI client
+      const openai = new OpenAI({
+        apiKey: openAIApiKey,
+      });
 
-      // You may want to add logic here to send the selected code to the chat
+      // Perform chat completions
+      const chatCompletion = await openai.chat.completions.create({
+        messages: chats,
+        model: "gpt-3.5-turbo",
+        stream: true,
+      });
 
-      // Example: Adding a message to the chat when user selects code
-
-      // await chatWebviewPanel?.update(`<div>${message}</div>`);
+      // Process the chat completions
+      // var completion: string = "\n";
+      for await (const chunk of chatCompletion) {
+        const completion = chunk.choices[0].delta.content;
+        console.log(completion);
+        // Display the completion in the webview
+        chatWebviewPanel?.update(`<div>${completion}</div>`);
+      }
     })
   );
+
+  // Function to handle messages sent from the webview
+  function sendMessageFromWebview(message: string) {
+    // Add the user's message to the chats array
+    vscode.window.showInformationMessage("Message received by extension");
+    chats.push({ role: "user", content: message });
+
+    // Handle sending the updated chats array to the API and processing the response
+    processUserMessage(message);
+  }
+
+  // Function to process user messages and interact with the OpenAI API
+  async function processUserMessage(message: string) {
+    // Handle sending the updated chats array to the API and processing the response
+    vscode.window.showInformationMessage("req sent to processuserMessage");
+    try {
+      // Get the OpenAI API key
+      const openAIApiKey = await apiKeyManager.getOpenAIApiKey();
+
+      // Initialize the OpenAI client
+      const openai = new OpenAI({
+        apiKey: openAIApiKey,
+      });
+
+      // Perform chat completions
+      const chatCompletion = await openai.chat.completions.create({
+        messages: chats,
+        model: "gpt-3.5-turbo",
+        stream: true,
+      });
+
+      // Process the chat completions
+      for await (const chunk of chatCompletion) {
+        const completion = chunk.choices[0].delta.content;
+        console.log(completion);
+        vscode.window.showInformationMessage(
+          "chat completion content: " + completion
+        );
+        // Display the completion in the webview
+        chatWebviewPanel?.update(`<div>${completion}</div>`);
+      }
+
+      // Additional logic after processing the API response
+      // ...
+    } catch (error) {
+      // Handle errors
+      console.error("Error processing user message:", error);
+
+      // You might want to update the webview with an error message or take other actions
+      chatWebviewPanel?.update(`<div>Error processing user message</div>`);
+    }
+  }
 };
 
 export const deactivate = () => {};
